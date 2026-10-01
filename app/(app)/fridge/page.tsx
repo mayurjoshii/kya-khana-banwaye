@@ -2,6 +2,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { Card, Chip, inputClass, labelClass, Muted, PageTitle, SectionHeading } from "@/components/ui";
 import { getFridge } from "@/lib/data";
 import { requireOwner } from "@/lib/supabase/server";
+import { msSince } from "@/lib/time";
 import type { FridgeItem } from "@/lib/types";
 
 import { addItem, confirmItem, deleteItem, setInStock } from "./actions";
@@ -11,7 +12,7 @@ export const metadata = { title: "Fridge · Cook Assistant" };
 const STALE_DAYS = 4;
 
 function age(item: FridgeItem): { days: number; label: string } {
-  const days = Math.floor((Date.now() - Date.parse(item.last_confirmed_at)) / 86_400_000);
+  const days = Math.floor(msSince(item.last_confirmed_at) / 86_400_000);
   return { days, label: days === 0 ? "checked today" : days === 1 ? "checked yesterday" : `checked ${days} days ago` };
 }
 

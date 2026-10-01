@@ -64,8 +64,6 @@ export async function callJson<S extends z.ZodType>(opts: {
   system: string;
   prompt: string;
   audio?: { data: string; mimeType: string };
-  /** Extra check after the schema passes. Return problems to retry once with them. */
-  validate?: (value: z.infer<S>) => string[];
 }): Promise<z.infer<S>> {
   const ai = gemini();
   const model = env.geminiModelText;
@@ -107,7 +105,7 @@ export async function callJson<S extends z.ZodType>(opts: {
       }
       const result = opts.schema.safeParse(parsed);
       const problems = result.success
-        ? (opts.validate?.(result.data) ?? [])
+        ? []
         : result.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`);
 
       if (problems.length === 0) {
@@ -125,7 +123,7 @@ export async function callJson<S extends z.ZodType>(opts: {
         error: lastError,
         ...usage,
       });
-      prompt = `${opts.prompt}\n\nYour previous answer broke these rules:\n${lastError}\nReturn a corrected answer that follows every rule.`;
+      prompt = `${opts.prompt}\n\nYour previous answer did not match the required JSON shape:\n${lastError}\nReturn corrected JSON.`;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       await logCall(opts.db, {

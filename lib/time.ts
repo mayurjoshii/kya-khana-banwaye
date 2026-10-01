@@ -80,3 +80,8 @@ export function formatStamp(iso: string): string {
     hourCycle: "h23",
   }).format(new Date(iso));
 }
+
+/** Milliseconds since an ISO timestamp. */
+export function msSince(iso: string): number {
+  return Date.now() - Date.parse(iso);
+}

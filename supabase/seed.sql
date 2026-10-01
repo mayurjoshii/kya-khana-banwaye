@@ -11,10 +11,14 @@ insert into cook_profile (id, name, visit_time, visit_minutes, max_dishes_simple
 values (1, 'Cook', '12:30', 60, 4, 3, 2, 'hi-IN', 'lunch_dinner') -- TODO(owner): cook's name
 on conflict (id) do nothing;
 
-insert into cook_rules (rule, kind) values
+insert into cook_rules (rule, kind)
+select rule, kind::rule_kind
+from (values
   ('Vegetarian food plus eggs only. Never meat or fish.', 'hard'),
   ('Everything she makes is for 2 adults: lunch plus dinner, or lunch plus snacks.', 'hard'),
-  ('Prefer dinner dishes that reheat well, since dinner is cooked at the 12:30 visit.', 'soft');
+  ('Prefer dinner dishes that reheat well, since dinner is cooked at the 12:30 visit.', 'soft')
+) as seed (rule, kind)
+where not exists (select 1 from cook_rules r where r.rule = seed.rule);
 
 -- Pantry staples: counted as in stock until marked out.
 insert into fridge_items (item_key, display_name, is_staple, in_stock) values

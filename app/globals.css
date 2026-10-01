@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/* Tokens from the Cook Assistant design system (one light theme).
+   https://claude.ai/artifact/Qow2kEMyJGvnPb96V4EBxD */
+@theme {
+  --color-paper: #fffdf8;
+  --color-paper-2: #fff1cf;
+  --color-ink: #2b1d33;
+  --color-ink-muted: #6b5a72;
+  --color-line: #eadfcb;
+  --color-haldi: #ffc53d;
+  --color-mirchi: #ff5b4a;
+  --color-kothimbir: #2dbe74;
+  --color-neel: #5e8dff;
+
+  --radius-sm: 10px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  --shadow-pop: 3px 3px 0 0 #2b1d33;
+
+  --font-display: var(--font-shrikhand), "Baloo 2", Georgia, serif;
+  --font-sans: var(--font-baloo), "Mukta", system-ui, sans-serif;
+}
+
+/* Text styles from tokens.json. `hindi` replaces the design system's
+   `marathi` style (same metrics) for cook-facing text. */
+@utility text-display {
+  font-family: var(--font-display);
+  font-size: 56px;
+  line-height: 58px;
+  font-weight: 400;
+}
+@utility text-title {
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 40px;
+  font-weight: 400;
+}
+@utility text-heading {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+}
+@utility text-body {
+  font-size: 17px;
+  line-height: 26px;
+  font-weight: 500;
+}
+@utility text-hindi {
+  font-size: 19px;
+  line-height: 30px;
+  font-weight: 500;
+}
+@utility text-small {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+@utility text-label {
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 700;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 26px;
+  font-weight: 500;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-neel);
+  outline-offset: 2px;
+}
+
+/* The one motion moment: dishes drop in when the day's plan arrives. */
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.drop-in {
+  animation: drop-in 380ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .drop-in {
+    animation: none;
+  }
+}

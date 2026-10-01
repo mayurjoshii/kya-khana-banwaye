@@ -109,3 +109,45 @@ export function recipeStepsPrompt(
     ),
   ].join("\n");
 }
+
+// Voice note -------------------------------------------------------------------
+
+export function scriptSystem(language: string): string {
+  const name = LANGUAGE_NAME[language] ?? "Hindi";
+  return `You write a short voice note in ${name} for a home cook. It will be read aloud by a text-to-speech voice and played on her phone.
+- Simple spoken ${name}, warm and respectful. Short sentences, one per line.
+- Start with a greeting using her name and "जी". Then say what to make for each meal, in order.
+- For dishes she knows, just name them, plus the quantity of the main protein ingredient (for example "पनीर 200 ग्राम").
+- For dishes she doesn't know, give the steps provided, in order, said naturally ("पहले...", "फिर...").
+- Use the ${name} dish names given. No English words unless there is no common ${name} word.
+- No lists, symbols, emoji or numbering: it is spoken. Write numbers as she would say them.
+- End with a short thank you. Keep it under 90 seconds when spoken (about 200 words), unless steps need more.`;
+}
+
+export function scriptPrompt(opts: {
+  cookName: string;
+  servings: number;
+  meals: { label: string; dishes: { name_hi: string; knows: boolean; steps: string[]; ingredients: string }[] }[];
+  boughtItems: string[];
+}): string {
+  const parts = [`Cook's name: ${opts.cookName}. Cooking for ${opts.servings} adults.`];
+  for (const meal of opts.meals) {
+    parts.push(
+      `${meal.label}:\n${meal.dishes
+        .map((d) =>
+          d.knows
+            ? `- ${d.name_hi} (she knows it). Ingredients: ${d.ingredients}`
+            : `- ${d.name_hi} (new for her). Ingredients: ${d.ingredients}\n  Steps:\n${d.steps.map((s) => `  ${s}`).join("\n")}`,
+        )
+        .join("\n")}`,
+    );
+  }
+  if (opts.boughtItems.length) parts.push(`Bought fresh for today (mention where it is: in the fridge): ${opts.boughtItems.join(", ")}.`);
+  return parts.join("\n\n");
+}
+
+export function ttsInstruction(language: string): string {
+  const name = LANGUAGE_NAME[language] ?? "Hindi";
+  // TODO(owner): if the voice reads this instruction aloud, set it to "" and test again.
+  return `Read this ${name} note slowly and clearly, in a warm, friendly voice:`;
+}

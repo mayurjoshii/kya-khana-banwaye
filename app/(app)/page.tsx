@@ -1,5 +1,6 @@
 import { MenuByMeal, StatusChip } from "@/components/plan-view";
 import { QuickInput } from "@/components/quick-input";
+import { CopyScript, SendToCook } from "@/components/send-to-cook";
 import { SubmitButton } from "@/components/submit-button";
 import { Card, Chip, Muted, Notice, SectionHeading } from "@/components/ui";
 import { getCookProfile, getPeople, getPlan } from "@/lib/data";
@@ -8,7 +9,7 @@ import { requireOwner } from "@/lib/supabase/server";
 import { formatDay, formatStamp, istDate, msSince, upcomingVisitDate } from "@/lib/time";
 import { MODE_LABEL, type MealPlan, type VisitMode } from "@/lib/types";
 
-import { decideMissing, planVisit, switchMode } from "./actions";
+import { decideMissing, makeVoiceNoteAction, planVisit, rewriteVoiceNote, switchMode } from "./actions";
 
 const STUCK_MS = 5 * 60_000;
 
@@ -81,6 +82,8 @@ export default async function TodayPage() {
             </Card>
 
             <MissingItems plan={plan} />
+
+            <VoiceNote plan={plan} cookName={cook.name} />
 
             {plan.status !== "sent" && (
               <section className="flex flex-wrap gap-3">
@@ -162,6 +165,83 @@ function MissingItems({ plan }: { plan: MealPlan }) {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function VoiceNote({ plan, cookName }: { plan: MealPlan; cookName: string }) {
+  if (plan.status === "stale" || plan.status === "failed" || plan.status === "planning") return null;
+  const player = plan.audio_path && (
+    <audio controls preload="none" src={`/api/plans/${plan.id}/audio?v=${plan.version}`} className="w-full" />
+  );
+  const script = plan.script_hi && (
+    <details className="mt-4">
+      <summary className="cursor-pointer text-small font-bold">What the note says</summary>
+      <p lang="hi" className="mt-2 whitespace-pre-line text-hindi">
+        {plan.script_hi}
+      </p>
+    </details>
+  );
+
+  return (
+    <section>
+      <SectionHeading>Voice note for {cookName}</SectionHeading>
+      <Card>
+        {plan.status === "sent" ? (
+          <>
+            <p className="mb-4">
+              <Chip tone="kothimbir">Sent</Chip>{" "}
+              {plan.sent_at && <span className="text-small text-ink-muted">{formatStamp(plan.sent_at)}</span>}
+            </p>
+            {player}
+            {script}
+          </>
+        ) : plan.status === "audio_ready" && plan.audio_path ? (
+          <>
+            {player}
+            {script}
+            <div className="mt-6">
+              <SendToCook planId={plan.id} date={plan.plan_date} version={plan.version} />
+            </div>
+            <form action={rewriteVoiceNote} className="mt-4">
+              <input type="hidden" name="plan_id" value={plan.id} />
+              <SubmitButton variant="quiet" pending="Rewriting… up to a minute">
+                Rewrite the note
+              </SubmitButton>
+            </form>
+          </>
+        ) : plan.script_hi && plan.error ? (
+          <>
+            <Notice tone="mirchi">{plan.error}</Notice>
+            {script}
+            <div className="mt-6 flex flex-col gap-4">
+              <CopyScript planId={plan.id} script={plan.script_hi} />
+              <form action={makeVoiceNoteAction}>
+                <input type="hidden" name="plan_id" value={plan.id} />
+                <SubmitButton pending="Trying again…">Try the voice again</SubmitButton>
+              </form>
+            </div>
+          </>
+        ) : (
+          <>
+            <Muted className="mb-4">
+              Turns the plan into a short Hindi note with steps for new dishes. The nightly run makes it
+              automatically.
+            </Muted>
+            {plan.error && (
+              <div className="mb-4">
+                <Notice tone="mirchi">{plan.error}</Notice>
+              </div>
+            )}
+            <form action={makeVoiceNoteAction}>
+              <input type="hidden" name="plan_id" value={plan.id} />
+              <SubmitButton variant="primary" pending="Making the note… up to a minute" className="py-3">
+                Make the voice note
+              </SubmitButton>
+            </form>
+          </>
+        )}
+      </Card>
     </section>
   );
 }

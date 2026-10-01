@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
+import { makeVoiceNote } from "@/lib/audio";
 import { getPlanById, setVisitOverride, updatePlan } from "@/lib/data";
+import { markSent } from "@/lib/plans";
 import { runPlan } from "@/lib/planner/run";
 import { requireOwner } from "@/lib/supabase/server";
 import type { MissingDecision, VisitMode } from "@/lib/types";
@@ -37,4 +39,26 @@ export async function decideMissing(form: FormData) {
   await updatePlan(db, plan.id, { missing_items: missing });
   if (decision === "swap") await runPlan(db, plan.plan_date);
   revalidatePath("/");
+}
+
+/** Script, then voice, then mp3 for the plan. Errors end up on the plan row. */
+export async function makeVoiceNoteAction(form: FormData) {
+  const db = await requireOwner();
+  await makeVoiceNote(db, text(form, "plan_id"));
+  revalidatePath("/");
+}
+
+/** Rewrites the script from scratch, then makes the voice note again. */
+export async function rewriteVoiceNote(form: FormData) {
+  const db = await requireOwner();
+  const id = text(form, "plan_id");
+  await updatePlan(db, id, { script_hi: null, audio_path: null, status: "planned" });
+  await makeVoiceNote(db, id);
+  revalidatePath("/");
+}
+
+export async function markSentAction(planId: string) {
+  const db = await requireOwner();
+  await markSent(db, planId);
+  revalidatePath("/", "layout");
 }

@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { getCookProfile, getFridge, getPlan, updatePlan } from "@/lib/data";
+import { getCookProfile, getCookSkills, getFridge, getPlan, getPlanById, updatePlan } from "@/lib/data";
 import { normalizeName, sameIngredient } from "@/lib/normalize";
 import { appLink, escapeHtml, sendMessage } from "@/lib/notify/telegram";
 import { computeMissing, newlyMissing } from "@/lib/planner/missing";
@@ -63,4 +63,46 @@ export async function markUpcomingPlanStale(
     if (!clash) return;
   }
   await updatePlan(db, plan.id, { status: "stale", error: reason });
+}
+
+/** Times a dish is cooked from steps before the cook counts as knowing it. */
+export const LEARNED_AFTER = 2;
+
+/**
+ * Marks a plan as sent to the cook. Its non-staple ingredients are marked used
+ * up (so tomorrow's plan doesn't count on them), and dishes she cooked from
+ * steps move towards "known".
+ */
+export async function markSent(db: SupabaseClient, planId: string) {
+  const plan = await getPlanById(db, planId);
+  if (!plan || plan.status === "sent") return;
+  const now = new Date().toISOString();
+  await updatePlan(db, plan.id, { status: "sent", sent_at: now, error: null });
+
+  const fridge = await getFridge(db);
+  const used = plan.dishes.flatMap((d) => d.ingredients.map((i) => normalizeName(i.item)));
+  const usedUp = fridge.filter((f) => !f.is_staple && f.in_stock && used.some((k) => sameIngredient(f.item_key, k)));
+  if (usedUp.length) {
+    await db
+      .from("fridge_items")
+      .update({ in_stock: false, quantity: "", updated_at: now })
+      .in("id", usedUp.map((f) => f.id));
+  }
+
+  const withSteps = plan.dishes.filter((d) => !d.cook_knows && d.steps_hi.length > 0);
+  if (withSteps.length) {
+    const skills = await getCookSkills(db);
+    await db.from("cook_skills").upsert(
+      withSteps.map((d) => {
+        const times = (skills.find((s) => s.dish_key === d.key)?.times_cooked_with_steps ?? 0) + 1;
+        return {
+          dish_key: d.key,
+          display_name: d.name,
+          times_cooked_with_steps: times,
+          knows: times >= LEARNED_AFTER,
+          updated_at: now,
+        };
+      }),
+    );
+  }
 }
